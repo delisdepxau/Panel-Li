@@ -1,1 +1,120 @@
+-- ⚡ Knockback Stick with Draggable GUI + Power Slider
+-- Executor Script (client-side)
 
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+
+-- GUI
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+
+-- Frame chính
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 200, 0, 120)
+Frame.Position = UDim2.new(0.5, -100, 0, 100)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.Active = true
+Frame.Draggable = true
+
+-- Nút toggle
+local Toggle = Instance.new("TextButton", Frame)
+Toggle.Size = UDim2.new(0, 180, 0, 40)
+Toggle.Position = UDim2.new(0, 10, 0, 10)
+Toggle.Text = "Knockback: OFF"
+Toggle.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Toggle.TextColor3 = Color3.new(1,1,1)
+Toggle.Font = Enum.Font.SourceSansBold
+Toggle.TextSize = 18
+
+-- Thanh chỉnh lực
+local SliderBack = Instance.new("Frame", Frame)
+SliderBack.Size = UDim2.new(0, 180, 0, 10)
+SliderBack.Position = UDim2.new(0, 10, 0, 60)
+SliderBack.BackgroundColor3 = Color3.fromRGB(60,60,60)
+
+local Slider = Instance.new("TextButton", SliderBack)
+Slider.Size = UDim2.new(0, 20, 0, 20)
+Slider.Position = UDim2.new(0, 0, -0.5, 0)
+Slider.BackgroundColor3 = Color3.fromRGB(150,0,200)
+Slider.Text = ""
+
+local PowerLabel = Instance.new("TextLabel", Frame)
+PowerLabel.Size = UDim2.new(0, 180, 0, 20)
+PowerLabel.Position = UDim2.new(0, 10, 0, 80)
+PowerLabel.BackgroundTransparency = 1
+PowerLabel.TextColor3 = Color3.new(1,1,1)
+PowerLabel.Font = Enum.Font.SourceSansBold
+PowerLabel.TextSize = 16
+PowerLabel.Text = "Power: 200"
+
+-- Vars
+local enabled = false
+local tool = nil
+local power = 200 -- lực knockback mặc định
+
+-- Hàm tạo gậy
+local function createStick()
+    tool = Instance.new("Tool")
+    tool.Name = "Knockback Stick"
+    tool.RequiresHandle = true
+    tool.CanBeDropped = true
+
+    local handle = Instance.new("Part")
+    handle.Name = "Handle"
+    handle.Size = Vector3.new(1,4,1)
+    handle.Color = Color3.fromRGB(100,0,200)
+    handle.Anchored = false
+    handle.CanCollide = false
+    handle.Parent = tool
+
+    tool.Parent = lp.Backpack
+
+    -- Knockback khi chạm
+    handle.Touched:Connect(function(hit)
+        if not enabled then return end
+        local char = hit.Parent
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hum and hrp and char ~= lp.Character then
+            local bv = Instance.new("BodyVelocity")
+            bv.Velocity = (hrp.Position - lp.Character.HumanoidRootPart.Position).Unit * power
+            bv.MaxForce = Vector3.new(1e5,1e5,1e5)
+            bv.Parent = hrp
+            game:GetService("Debris"):AddItem(bv, 0.3)
+        end
+    end)
+end
+
+-- Toggle ON/OFF
+Toggle.MouseButton1Click:Connect(function()
+    enabled = not enabled
+    Toggle.Text = enabled and "Knockback: ON" or "Knockback: OFF"
+    if enabled and not tool then
+        createStick()
+    elseif not enabled and tool then
+        tool:Destroy()
+        tool = nil
+    end
+end)
+
+-- Slider drag
+local uis = game:GetService("UserInputService")
+local dragging = false
+
+Slider.MouseButton1Down:Connect(function()
+    dragging = true
+end)
+
+uis.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+uis.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local pos = math.clamp(input.Position.X - SliderBack.AbsolutePosition.X, 0, SliderBack.AbsoluteSize.X)
+        Slider.Position = UDim2.new(0, pos, -0.5, 0)
+        power = math.floor(100 + (pos / SliderBack.AbsoluteSize.X) * 900) -- từ 100 -> 1000
+        PowerLabel.Text = "Power: "..power
+    end
+end)
